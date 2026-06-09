@@ -84,14 +84,17 @@ kilter_dl/samples/
 *.bcf
 *.run.xml
 
-# --- Large / external data (obtain locally per README) ---
-boardlib_data/
-dataset/dataset/
+# --- Data: large files fetched locally (see setup_gui.sh) ---
+boardlib_data/kilter.sqlite3
+boardlib_data/images_kilter/
+boardlib_data/logs/
 
-# --- Runtime / user-generated databases ---
-*.db
-*.sqlite
-*.sqlite3
+# Dataset sample for "Load Random Route from Dataset" (<100 MB, kept in git)
+dataset/dataset/*
+!dataset/dataset/single_board.json
+
+# User ratings DB — created automatically on first launch
+kilter_cpp_gui/data/
 
 # --- Generated report outputs (optional local copies) ---
 # Uncomment to also ignore compiled PDFs:

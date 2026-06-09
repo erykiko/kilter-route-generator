@@ -11,6 +11,19 @@ It:
 
 No online API is required.
 
+## First-time setup (after `git clone`)
+
+Large files are **not** stored in the repository (GitHub 100 MB file limit).
+Run once from the project root:
+
+```bash
+./setup_gui.sh
+```
+
+This creates `kilter_dl/.venv`, downloads `boardlib_data/kilter.sqlite3` via
+[boardlib](https://github.com/boardlib/boardlib), and checks that the checkpoint
+and dataset files from git are present.
+
 ## Build
 
 From project root:

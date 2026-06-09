@@ -30,11 +30,32 @@ do_build() {
   echo "==> Build OK: $BINARY"
 }
 
+check_runtime_assets() {
+  local missing=0
+  if [[ ! -f "$REPO_ROOT/boardlib_data/kilter.sqlite3" ]]; then
+    echo "Error: missing boardlib_data/kilter.sqlite3" >&2
+    missing=1
+  fi
+  if [[ ! -x "$REPO_ROOT/kilter_dl/.venv/bin/python" ]]; then
+    echo "Error: missing kilter_dl/.venv (Python worker)" >&2
+    missing=1
+  fi
+  if [[ ! -f "$REPO_ROOT/kilter_dl/checkpoints/kilter_gen.pt" ]]; then
+    echo "Error: missing kilter_dl/checkpoints/kilter_gen.pt" >&2
+    missing=1
+  fi
+  if (( missing )); then
+    echo "Run ./setup_gui.sh from the project root first." >&2
+    exit 1
+  fi
+}
+
 do_run() {
   if [[ ! -x "$BINARY" ]]; then
     echo "Error: binary not found at $BINARY — run '$(basename "$0") build' first." >&2
     exit 1
   fi
+  check_runtime_assets
   echo "==> Running from $REPO_ROOT"
   cd "$REPO_ROOT"
   exec "$BINARY" "$@"
