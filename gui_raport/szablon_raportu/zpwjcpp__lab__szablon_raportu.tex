@@ -1,0 +1,156 @@
+\documentclass[fleqn,onecolumn,a4paper,12pt,titlepage]{article}
+\usepackage[showcrop]{geometry}
+\geometry{textheight=25.0cm,textwidth=17.0cm,headheight=3cm,headsep=0.5em}%hmargin=4.2cm
+\usepackage{graphicx}%[dvips,pdftex]
+\usepackage{amssymb}
+\usepackage{amsmath}%centertags
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{float}
+\usepackage[final]{listingsutf8}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usepackage{caption}
+\usepackage{datetime2}
+\usepackage{enumitem}
+\usepackage{blindtext}
+\usepackage{hyperref}
+
+\pagestyle{fancy}
+\fancyfoot[L,R]{\tiny{\texttt{\symbol{64}}  built: \today{} at \DTMcurrenttime}} 
+
+% --- definicja stylu C++ ---
+\definecolor{codebg}{RGB}{245,245,244}
+\definecolor{comment}{RGB}{0,128,0}
+\definecolor{keyword}{RGB}{0,0,180}
+\definecolor{string}{RGB}{163,21,21}
+\definecolor{linenumber}{RGB}{120,120,120}
+
+\lstdefinestyle{cppstyle}{
+    language=C++,
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{keyword}\bfseries,
+    commentstyle=\color{comment}\itshape,
+    stringstyle=\color{string},
+    numberstyle=\tiny\color{linenumber},
+    numbers=left,
+    stepnumber=1,
+    numbersep=10pt,
+    tabsize=4,
+    showspaces=false,
+    showstringspaces=false,
+    breaklines=true,
+    breakatwhitespace=true,
+    frame=single,
+    rulecolor=\color{black},
+    captionpos=b
+}
+
+\lstset{style=cppstyle}
+
+\begin{document}
+
+\begin{titlepage}
+    \includegraphics[width=0.25\textwidth]{logo_kia.png}\par\vspace{3cm}
+    \centering
+    {\LARGE \textsc{Zaawansowane Programowanie w Języku C++} \par}
+    \vspace{2cm}
+    {\Large \textsc{Raport z wykonania projektu} \par} % NALEŻY UZUPEŁNIĆ
+    \vspace{2cm}
+    {\textsc{Tytuł projektu} \par} % NALEŻY UZUPEŁNIĆ
+    \vfill
+    Imię Nazwisko $-$ numer indeksu $-$ L00 \par % NALEŻY UZUPEŁNIĆ
+    \vspace{2cm}
+    {\large {\today} \par}
+\end{titlepage}
+
+\section*{Wstęp}
+
+W tym rozdziale należy krótko nakreslić tematykę, której dotyczy projekt.
+
+
+\newpage
+
+\section*{Baza danych}
+
+W tym rozdziale należy opisać zaplanowaną baze danych, przedstawić jej 
+diagram~\ref{fig:przykladowy_zrzut_1} oraz opisac sposób i technologię 
+implementacji wraz z odpowiednimi listingami istotnych 
+fragmentów.~\ref{lst:przykladowy_listing_1}
+
+\begin{figure}[H]%
+    \centering
+    \includegraphics[width=0.9\textwidth]{przykladowy_zrzut.png}
+    \caption{Przykładowy zrzut ekranu}
+    \label{fig:przykladowy_zrzut_1}
+\end{figure}
+
+\lstinputlisting[caption={Obliczanie silni}, label={lst:przykladowy_listing_1}]{silnia.cpp}
+
+
+\newpage
+
+\section*{Struktura aplikacji}
+
+W tym rozdziale należy przedstawić diagram klas~\ref{fig:przykladowy_zrzut_2} 
+i~opisać każdą z nich, tak żeby czytelnik mógł zrozumieć po co zostały 
+one wprowadzone do projektu. 
+
+\begin{figure}[H]%
+    \centering
+    \includegraphics[width=0.9\textwidth]{przykladowy_zrzut.png}
+    \caption{Przykładowy zrzut ekranu}
+    \label{fig:przykladowy_zrzut_2}
+\end{figure}
+
+
+Należy tu również zamieścić listingi istotnych fragmentów kodu i przeanalizować je. 
+Przykładowo w projekcie opisana jest klasa odpowiedzialna za logikę rozmieszcania 
+botów na mapie, więc ciekawym aspektem będzie opis funkcji rozmieszczającej 
+boty~\ref{lst:przykladowy_listing_2}.
+
+\lstinputlisting[caption={Obliczanie silni}, label={lst:przykladowy_listing_2}]{silnia.cpp}
+
+
+\newpage
+
+\section*{Działanie aplikacji}
+
+W tym miejscu należy opisać końcowy rezultat oraz przedstawić 
+screeny~\ref{fig:przykladowy_zrzut_3} pokazujące wazne momenty 
+działania aplikacji.
+
+\begin{figure}[H]%
+    \centering
+    \includegraphics[width=0.9\textwidth]{przykladowy_zrzut.png}
+    \caption{Przykładowy zrzut ekranu}
+    \label{fig:przykladowy_zrzut_3}
+\end{figure}
+
+
+\newpage
+
+\section*{Podsumowanie}
+
+W tym miejscu należy podsumować projekt. Warto opisać co było 
+najtrudniejszym elementem, jaka część była najciekawsza, a~która 
+pozwoliła się najwięcej nauczyć.
+
+{
+    \color{red}\textbf{
+Jeżeli na jakimkolwiek etapie wykorzystywana była sztuczna inteligencja 
+generatywna, to~w~tym miejscu należy również zamieścić link udostępniający 
+pełną przeprowadzoną rozmowę(y). Link należy wygenerować, na samym końcu 
+pisania raportu. Link powienien działać w~momencie oceny pracy oraz 
+w~trakcie obrony projektu.
+    }
+}
+
+
+
+
+
+
+\end{document}
+

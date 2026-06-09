@@ -1,0 +1,383 @@
+\documentclass[fleqn,onecolumn,a4paper,12pt,titlepage]{article}
+\usepackage[showcrop]{geometry}
+\geometry{textheight=25.0cm,textwidth=17.0cm,headheight=3cm,headsep=0.5em}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{float}
+\usepackage[final]{listingsutf8}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds}
+\usepackage{caption}
+\usepackage{datetime2}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\pagestyle{fancy}
+\fancyfoot[L,R]{\tiny{\texttt{\symbol{64}}  built: \today{} at \DTMcurrenttime}}
+
+\definecolor{codebg}{RGB}{245,245,244}
+\definecolor{comment}{RGB}{0,128,0}
+\definecolor{keyword}{RGB}{0,0,180}
+\definecolor{string}{RGB}{163,21,21}
+\definecolor{linenumber}{RGB}{120,120,120}
+
+\lstdefinestyle{cppstyle}{
+    language=C++,
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{keyword}\bfseries,
+    commentstyle=\color{comment}\itshape,
+    stringstyle=\color{string},
+    numberstyle=\tiny\color{linenumber},
+    numbers=left,
+    stepnumber=1,
+    numbersep=10pt,
+    tabsize=4,
+    showspaces=false,
+    showstringspaces=false,
+    breaklines=true,
+    breakatwhitespace=true,
+    frame=single,
+    rulecolor=\color{black},
+    captionpos=b
+}
+\lstset{style=cppstyle}
+
+\newcommand{\placeholderbox}[2]{%
+    \begin{center}
+    \fbox{\parbox{0.88\textwidth}{\centering\vspace{2.2em}
+    \textit{[Miejsce na: #1]}\\\vspace{0.4em}\footnotesize{#2}\vspace{2.2em}}}
+    \end{center}
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \placeholderbox{logo KIA (\texttt{logo\_kia.png})}{Wstaw logo wydziału/katedry}
+    \vspace{2cm}
+    \centering
+    {\LARGE \textsc{Zaawansowane Programowanie w Języku C++} \par}
+    \vspace{2cm}
+    {\Large \textsc{Raport z wykonania projektu} \par}
+    \vspace{2cm}
+    {\textsc{GENCLIMB --- aplikacja GTK4 do generowania tras wspinaczkowych Kilter} \par}
+    \vfill
+    \textbf{[Imię Nazwisko]} $-$ \textbf{[numer indeksu]} $-$ \textbf{[L00]} \par
+    \vspace{2cm}
+    {\large {\today} \par}
+\end{titlepage}
+
+\section*{Wstęp}
+
+\textbf{Kilter Board} to interaktywna ściana wspinaczkowa z podświetlanymi chwytami (dziurkami).
+Każda \emph{trasa} to uporządkowany zbiór chwytów z przypisanymi rolami: start, chwyt pośredni,
+szczyt (finish) oraz chwyt na nogę. Niniejszy projekt laboratoryjny implementuje natywną
+aplikację C++ z interfejsem graficznym GTK4, która:
+\begin{itemize}[leftmargin=1.5em]
+    \item wczytuje geometrię dziurek ściany z lokalnej bazy SQLite (\texttt{boardlib\_data/kilter.sqlite3}),
+    \item generuje nowe trasy przy użyciu wytrenowanego modelu (proces potomny Pythona),
+    \item wizualizuje trasę na planszy,
+    \item pozwala użytkownikowi ocenić trasę (1--5) i zapisać ją do lokalnej bazy wyników.
+\end{itemize}
+
+Kod aplikacji znajduje się w katalogu \texttt{kilter\_cpp\_gui/}. Projekt został
+zorganizowany modułowo: nagłówki w \texttt{include/}, implementacje w \texttt{src/},
+konfiguracja budowania w \texttt{CMakeLists.txt}. Uruchomienie wymaga katalogu
+głównego repozytorium jako bieżącego katalogu roboczego (ścieżki względne do baz
+i skryptów Pythona).
+
+\section*{Baza danych}
+
+Aplikacja korzysta z \textbf{dwóch instancji SQLite} --- osobnej bazy tylko do odczytu
+oraz zapisywalnej bazy wyników użytkownika.
+
+\subsection*{Baza planszy (\texttt{kilter.sqlite3})}
+
+Baza \emph{boardlib} zawiera co najmniej trzy tabele wykorzystywane przez zapytanie
+w module \texttt{board\_db}:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{holes} --- identyfikator i współrzędne każdej dziurki na panelu,
+    \item \texttt{placements} --- powiązanie dziurki z układem (\texttt{layout\_id}, \texttt{set\_id}),
+    \item \texttt{product\_sizes\_layouts\_sets} --- mapowanie wariantu produktu
+          (\texttt{product\_size\_id}) na układ ściany.
+\end{itemize}
+Aplikacja odczytuje dziurki dla wybranego układu (token layoutu, np.\ 1270) poprzez
+złączenie (\texttt{JOIN}) tych tabel. Funkcja \texttt{product\_size\_id\_from\_layout\_token}
+mapuje token modelu na identyfikator produktu w bazie boardlib.
+
+\subsection*{Baza wyników (\texttt{saved\_routes.db})}
+
+Zapisywalna baza tworzona automatycznie w \texttt{kilter\_cpp\_gui/data/} przechowuje
+historię tras zaakceptowanych przez użytkownika. Tabela \texttt{saved\_routes} zawiera
+pola: \texttt{id}, \texttt{created\_at}, \texttt{layout\_id}, \texttt{grade\_id},
+\texttt{source} (model lub dataset), \texttt{rating}, \texttt{hole\_count},
+\texttt{tokens}, \texttt{hole\_ids}.
+
+Operacje na bazie wyników realizuje moduł \texttt{results\_db}:
+inicjalizacja schematu (\texttt{init\_results\_db}), zapis (\texttt{save\_route\_to\_db})
+oraz odczyt ostatnich wpisów (\texttt{load\_recent\_routes}, sortowanie
+\texttt{ORDER BY id DESC}).
+
+\subsection*{Diagram bazy danych}
+
+Na rysunku~\ref{fig:db_diagram} przedstawiono uproszczony schemat relacji między
+tabelami obu baz. Strzałki oznaczają klucze obce logiczne wykorzystywane w zapytaniach
+aplikacji (niekoniecznie zadeklarowane jako \texttt{FOREIGN KEY} w pliku SQLite).
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        table/.style={draw, rounded corners=2pt, align=center, font=\footnotesize\ttfamily,
+                      inner sep=6pt, fill=white, text width=3.6cm},
+        dbframe/.style={draw, dashed, rounded corners=4pt},
+        rel/.style={-{Stealth[length=2mm]}, semithick, shorten >=3pt, shorten <=3pt},
+        rellbl/.style={font=\scriptsize, fill=white, inner sep=2pt}
+    ]
+        \node[table] (psls) at (0, 0) {%
+            \textbf{product\_sizes\_layouts\_sets}\\[3pt]
+            product\_size\_id\\
+            layout\_id, set\_id
+        };
+        \node[table, right=2.6cm of psls] (placements) {%
+            \textbf{placements}\\[3pt]
+            layout\_id, set\_id\\
+            hole\_id
+        };
+        \node[table, right=2.6cm of placements] (holes) {%
+            \textbf{holes}\\[3pt]
+            id\\
+            x, y
+        };
+
+        \draw[rel] (psls.east) -- (placements.west);
+        \draw[rel] (placements.east) -- (holes.west);
+        \node[rellbl] at ($(psls)!0.5!(placements) + (0,0.55)$) {layout\_id, set\_id};
+        \node[rellbl] at ($(placements)!0.5!(holes) + (0,0.55)$) {hole\_id};
+
+        \node[dbframe, fit=(psls) (holes), inner xsep=16pt, inner ysep=12pt] (boardframe) {};
+        \node[font=\small, anchor=south west, yshift=2pt] at (boardframe.north west) {%
+            \texttt{boardlib\_data/kilter.sqlite3} (odczyt)};
+
+        \node[table, below=3.2cm of placements] (saved) {%
+            \textbf{saved\_routes}\\[3pt]
+            id, created\_at\\
+            layout\_id, grade\_id\\
+            source, rating\\
+            hole\_count, tokens
+        };
+        \node[dbframe, fit=(saved), inner xsep=16pt, inner ysep=12pt] (resframe) {};
+        \node[font=\small, anchor=south west, yshift=2pt] at (resframe.north west) {%
+            \texttt{kilter\_cpp\_gui/data/saved\_routes.db} (zapis)};
+    \end{tikzpicture}
+    \caption{Uproszczony diagram tabel baz danych wykorzystywanych przez aplikację.}
+    \label{fig:db_diagram}
+\end{figure}
+
+\subsection*{Implementacja --- połączenie z bazą}
+
+Inicjalizacja lokalnej bazy wyników oraz odczyt dziurek planszy ilustrują listingi
+~\ref{lst:results_db} i~\ref{lst:board_db}. Dostęp do SQLite realizowany jest przez
+bibliotekę \texttt{libsqlite3} (CMake: \texttt{PkgConfig::SQLITE3}). Parametryzowane
+zapytania (\texttt{sqlite3\_prepare\_v2}, \texttt{sqlite3\_bind\_*}) zapobiegają
+wstrzyknięciu SQL.
+
+\lstinputlisting[caption={Inicjalizacja tabeli \texttt{saved\_routes} w lokalnej bazie wyników},
+                 label={lst:results_db}]{listings/results_db_init.cpp}
+
+\lstinputlisting[caption={Odczyt pozycji dziurek z bazy boardlib (JOIN trzech tabel)},
+                 label={lst:board_db}]{listings/board_db_query.cpp}
+
+\newpage
+
+\section*{Struktura aplikacji}
+
+\subsection*{Organizacja modułów}
+
+Po reorganizacji projektu kod podzielono na moduły z wyraźnym podziałem
+\texttt{include/} / \texttt{src/}:
+
+\begin{center}
+\small
+\begin{tabular}{l|l}
+\textbf{Moduł} & \textbf{Odpowiedzialność} \\
+\hline
+\texttt{types.hpp} & Struktury \texttt{Hole}, \texttt{SavedRoute}, \texttt{AppState} \\
+\texttt{board\_db} & Odczyt dziurek z \texttt{kilter.sqlite3} \\
+\texttt{results\_db} & Zapis i odczyt historii tras użytkownika \\
+\texttt{generator\_process} & Klasa \texttt{GeneratorProcess} --- IPC z workerem Pythona \\
+\texttt{route} & Parsowanie tokenów tras i przypisywanie ról chwytów \\
+\texttt{ui} & Interfejs GTK4, rysowanie planszy (Cairo), obsługa zdarzeń \\
+\texttt{main.cpp} & Inicjalizacja ścieżek, uruchomienie \texttt{GtkApplication} \\
+\end{tabular}
+\end{center}
+
+Program jest napisany obiektowo w sensie modularnym: logika enkapsulowana w klasach
+(np.\ \texttt{GeneratorProcess}) oraz w funkcjach powiązanych z konkretnym obszarem
+danych (bazy, trasa, UI). Stan aplikacji zebrany jest w strukturze \texttt{AppState}.
+
+\subsection*{Diagram modułów}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        mod/.style={draw, rounded corners=2pt, minimum width=2.5cm, minimum height=0.9cm,
+                    align=center, font=\small, fill=white},
+        ext/.style={draw, dashed, rounded corners=2pt, minimum width=2.5cm, minimum height=0.9cm,
+                    align=center, font=\small, fill=gray!6},
+        arr/.style={-{Stealth[length=2mm]}, semithick},
+        arrd/.style={-{Stealth[length=2mm]}, semithick, dashed},
+        lbl/.style={font=\scriptsize, fill=white, inner sep=2pt}
+    ]
+        \node[mod] (main) at (0, 0) {main.cpp};
+
+        \node[mod] (ui) at (-4.2, -2.2) {ui};
+        \node[mod] (board) at (0, -2.2) {board\_db};
+        \node[mod] (results) at (4.2, -2.2) {results\_db};
+
+        \node[mod] (route) at (-5.8, -4.6) {route};
+        \node[mod] (gen) at (-2.6, -4.6) {Generator\\Process};
+        \node[ext] (py) at (1.2, -4.6) {Python\\worker};
+
+        \draw[arr] (main.south) -- ++(0,-0.55) -| (ui.north);
+        \draw[arr] (main.south) -- ++(0,-0.55) -| (board.north);
+        \draw[arr] (main.south) -- ++(0,-0.55) -| (results.north);
+
+        \draw[arr] (ui.south) -- ++(0,-0.45) -| (route.north);
+        \draw[arr] (ui.south) -- ++(0,-0.45) -| (gen.north);
+
+        \draw[arr] (ui.east) to[out=0, in=180, looseness=1.1] (board.west);
+        \draw[arr] (ui.east) to[out=10, in=170, looseness=1.3] (results.west);
+
+        \draw[arrd] (gen.east) -- node[lbl, above, pos=0.55] {pipe JSON} (py.west);
+    \end{tikzpicture}
+    \caption{Zależności między modułami aplikacji \texttt{kilter\_gui}.}
+    \label{fig:modules}
+\end{figure}
+
+\subsection*{Komunikacja z procesem generatora}
+
+Wymaganie poziomu~II (dwa procesy komunikujące się przez potok) realizuje klasa
+\texttt{GeneratorProcess}. Zamiast uruchamiać interpreter Pythona przy każdym kliknięciu,
+aplikacja:
+\begin{enumerate}[leftmargin=1.5em]
+    \item tworzy parę potoków (\texttt{pipe}),
+    \item wywołuje \texttt{fork()} i w procesie potomnym \texttt{execl()} na skrypt
+          \texttt{kilter\_dl/generate\_server.py},
+    \item przekierowuje \texttt{stdin}/\texttt{stdout} workera na końce potoków,
+    \item wymienia komunikaty JSON linia po linii (żądanie \texttt{generate},
+          odpowiedź \texttt{ok}/\texttt{error}, na koniec \texttt{shutdown}).
+\end{enumerate}
+
+Listing~\ref{lst:generator_ipc} pokazuje kluczowe fragmenty startu i wysyłania żądania.
+Obsługa w GUI znajduje się w \texttt{on\_generate\_clicked} (listing~\ref{lst:ui_ipc}).
+
+\lstinputlisting[caption={Uruchomienie workera Pythona i komunikacja przez potoki (IPC)},
+                 label={lst:generator_ipc}]{listings/generator_process_ipc.cpp}
+
+\lstinputlisting[caption={Wysłanie żądania generacji trasy z poziomu GUI},
+                 label={lst:ui_ipc}]{listings/ui_generate_request.cpp}
+
+% \subsection*{Spełnienie kryteriów oceny}
+
+% \begin{center}
+% \small
+% \begin{tabular}{p{3.2cm}|p{10.5cm}}
+% \textbf{Poziom} & \textbf{Realizacja w projekcie} \\
+% \hline
+% I (3.0) &
+% Baza SQLite z $\geq 3$ tabelami (boardlib); odczyt dziurek i zapis tras użytkownika;
+% program modularny/obiektowy. \emph{Uwaga:} w kodzie brak jawnych statystyk
+% (średnia, mediana, odchylenie) oraz interaktywnego sortowania listy wyników
+% poza \texttt{ORDER BY id DESC}. \\
+% \hline
+% II (4.0) &
+% Spełnione: (a)~baza jako instancja SQLite, nie plik tekstowy;
+% (b)~dwa procesy (GUI C++ + worker Python) komunikujące się przez potoki. \\
+% \hline
+% III (5.0) &
+% Wariant alternatywny: poziom~I + przemyślany interfejs graficzny GTK4
+% (plansza Cairo, panele sterowania, dialog potwierdzenia zapisu).
+% Dodatkowo spełnione są też punkty IIa i IIb. \\
+% \end{tabular}
+% \end{center}
+
+\newpage
+
+\section*{Działanie aplikacji}
+
+\subsection*{Budowanie i uruchomienie}
+
+\begin{verbatim}
+./kilter_cpp_gui/run.sh          # build + run z katalogu głównego repo
+./kilter_cpp_gui/run.sh build    # tylko kompilacja
+\end{verbatim}
+
+Aplikacja wymaga: \texttt{boardlib\_data/kilter.sqlite3}, środowiska Python
+\texttt{kilter\_dl/.venv}, co najmniej jednego checkpointu w \texttt{kilter\_dl/checkpoints/}
+oraz plików map tokenów w \texttt{dataset/}.
+
+\subsection*{Przepływ użytkownika}
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item Użytkownik wybiera układ ściany (\textbf{Board}) i trudność (\textbf{Grade}).
+    \item Przycisk \emph{Generate Route + Render} uruchamia (lub ponownie wykorzystuje)
+          proces generatora i wysyła żądanie JSON z parametrami dekodowania.
+    \item Odpowiedź zawiera tokeny trasy; moduł \texttt{route} przypisuje role chwytom
+          (start --- zielony, pośredni --- niebieski, finish --- fioletowy, noga --- pomarańczowy).
+    \item Plansza po prawej stronie rysuje wszystkie dziurki oraz aktywną trasę (Cairo).
+    \item Użytkownik ustawia ocenę 1--5 i klika \emph{Save route + rating to DB};
+          po potwierdzeniu w dialogu rekord trafia do \texttt{saved\_routes.db}.
+    \item Panel \emph{Recently saved routes} odświeża listę ostatnich 10 zapisów.
+    \item Alternatywnie: \emph{Load Random Route from Dataset} pobiera trasę ze zbioru
+          bez uruchamiania modelu.
+\end{enumerate}
+
+\subsection*{Zrzuty ekranu}
+
+\begin{figure}[H]
+    \placeholderbox{zrzut ekranu --- główne okno aplikacji}{Widok po wygenerowaniu trasy:
+    panel sterowania po lewej, plansza z kolorowymi chwytami po prawej}
+    \caption{Główne okno aplikacji GENCLIMB po wygenerowaniu trasy.}
+    \label{fig:main_window}
+\end{figure}
+
+\begin{figure}[H]
+    \placeholderbox{zrzut ekranu --- dialog zapisu trasy}{Potwierdzenie zapisu z oceną
+    użytkownika (1--5) do lokalnej bazy}
+    \caption{Dialog potwierdzenia zapisu trasy do bazy wyników.}
+    \label{fig:save_dialog}
+\end{figure}
+
+\begin{figure}[H]
+    \placeholderbox{zrzut ekranu --- panel historii zapisów}{Lista ostatnich tras
+    z \texttt{saved\_routes.db} (layout, grade, źródło, liczba chwytów, ocena)}
+    \caption{Panel historii zapisanych tras.}
+    \label{fig:history}
+\end{figure}
+
+\section*{Podsumowanie}
+
+Zrealizowano aplikację C++ z graficznym interfejsem GTK4 do pracy z trasami
+wspinaczkowymi na ścianach Kilter. Projekt łączy odczyt danych geometrycznych
+z bazy boardlib, generację tras przez długożyjący proces potomny (IPC przez potoki)
+oraz trwały zapis ocen użytkownika w osobnej bazie SQLite.
+
+\textbf{Najciekawszy element} --- architektura z procesem workera Pythona:
+jednokrotne załadowanie modelu PyTorch skraca czas kolejnych generacji w porównaniu
+z uruchamianiem nowego interpretera przy każdym żądaniu. Protokół JSON linia-po-linii
+upraszcza debugowanie kanału komunikacji.
+
+\textbf{Najtrudniejszy element} --- spójne mapowanie tokenów modelu na identyfikatory
+dziurek i role chwytów oraz synchronizacja wielu ścieżek danych (model, dataset, baza
+planszy) przy zachowaniu czytelnej struktury modułowej po refaktoryzacji katalogów
+\texttt{include/} i \texttt{src/}.
+
+\textbf{Obszar do rozbudowy} --- zgodnie z kryteriami poziomu~I warto dodać moduł
+statystyk (np.\ średnia/mediana ocen i liczby chwytów w \texttt{saved\_routes})
+oraz interaktywne sortowanie widocznej historii zapisów.
+
+\end{document}
